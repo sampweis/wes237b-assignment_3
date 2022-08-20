@@ -1,0 +1,191 @@
+        -:    0:Source:src/student_sobel.cpp
+        -:    0:Graph:objs/student_sobel.gcno
+        -:    0:Data:objs/student_sobel.gcda
+        -:    0:Runs:1
+        -:    0:Programs:1
+        -:    1:
+        -:    2:#include "sobel.h"
+        -:    3:#include "arm_neon.h"
+        -:    4:
+        -:    5:#include <iostream>
+        -:    6:
+        -:    7:using namespace std;
+        -:    8:using namespace cv;
+        -:    9:
+        -:   10:
+        -:   11:int sobel_kernel_x[3][3] = {
+        -:   12:	{ 1,  0, -1},
+        -:   13:	{ 2,  0, -2},
+        -:   14:	{ 1,  0, -1}};
+        -:   15:
+        -:   16:int sobel_kernel_y[3][3] = {
+        -:   17:	{ 1,    2,  1},
+        -:   18:	{ 0,    0,  0},
+        -:   19:	{ -1,  -2, -1}};
+        -:   20:
+    #####:   21:void sobel(const Mat& src, Mat& dst)
+        -:   22:{
+    #####:   23:    const int HEIGHT = src.rows;
+    #####:   24:	const int WIDTH  = src.cols;
+        -:   25:    
+        -:   26:    const unsigned char* src_ptr  = src.ptr<const unsigned char>();
+        -:   27:    unsigned char* dst_ptr  = dst.ptr<unsigned char>();
+        -:   28:    
+    #####:   29:    for(int row = 1; row < HEIGHT-1; row++)
+        -:   30:    {
+    #####:   31:        for(int col = 1; col < WIDTH-1; col++)
+        -:   32:        {
+        -:   33:            int accum_x = 0;
+        -:   34:            int accum_y = 0;
+        -:   35:            
+        -:   36:            // calculate convolution with x and y kernels
+    #####:   37:            for(int kernel_row = 0; kernel_row < 3; kernel_row++)
+        -:   38:            {
+    #####:   39:                for(int kernel_col = 0; kernel_col < 3; kernel_col++)
+        -:   40:                {
+    #####:   41:                    accum_x += (sobel_kernel_x[kernel_row][kernel_col]*
+    #####:   42:                                src_ptr[(row+kernel_row-1) * WIDTH + (col+kernel_col-1)]);
+    #####:   43:                    accum_y += (sobel_kernel_y[kernel_row][kernel_col]*
+        -:   44:                                src_ptr[(row+kernel_row-1) * WIDTH + (col+kernel_col-1)]);
+        -:   45:                }
+        -:   46:            }
+        -:   47:            
+        -:   48:            // calculate total magnitude and clamp to 255
+    #####:   49:            unsigned int total = sqrt(accum_x*accum_x + accum_y*accum_y);
+    #####:   50:            dst_ptr[row * WIDTH + col] = total > 255 ? 255 : total;
+        -:   51:        }
+        -:   52:    }
+        -:   53:    
+    #####:   54:}
+        -:   55:
+        -:   56:
+    #####:   57:void sobel_unroll(const Mat& src, Mat& dst)
+        -:   58:{
+    #####:   59:	const int HEIGHT = src.rows;
+    #####:   60:	const int WIDTH  = src.cols;
+        -:   61:    
+        -:   62:    const unsigned char* src_ptr  = src.ptr<const unsigned char>();
+        -:   63:    unsigned char* dst_ptr  = dst.ptr<unsigned char>();
+        -:   64:    
+    #####:   65:    for(int row = 1; row < HEIGHT-1; row++)
+        -:   66:    {
+    #####:   67:        for(int col = 1; col < WIDTH-1; col++)
+        -:   68:        {
+        -:   69:            int accum_x = 0;
+        -:   70:            int accum_y = 0;
+        -:   71:            
+        -:   72:            // calculate convolution with x kernel
+    #####:   73:            accum_x += (sobel_kernel_x[0][0]*
+    #####:   74:                        src_ptr[(row+0-1) * WIDTH + (col+0-1)]);
+    #####:   75:            accum_x += (sobel_kernel_x[0][1]*
+    #####:   76:                        src_ptr[(row+0-1) * WIDTH + (col+1-1)]);
+    #####:   77:            accum_x += (sobel_kernel_x[0][2]*
+    #####:   78:                        src_ptr[(row+0-1) * WIDTH + (col+2-1)]);
+    #####:   79:            accum_x += (sobel_kernel_x[1][0]*
+    #####:   80:                        src_ptr[(row+1-1) * WIDTH + (col+0-1)]);
+    #####:   81:            accum_x += (sobel_kernel_x[1][1]*
+    #####:   82:                        src_ptr[(row+1-1) * WIDTH + (col+1-1)]);
+    #####:   83:            accum_x += (sobel_kernel_x[1][2]*
+    #####:   84:                        src_ptr[(row+1-1) * WIDTH + (col+2-1)]);
+    #####:   85:            accum_x += (sobel_kernel_x[2][0]*
+    #####:   86:                        src_ptr[(row+2-1) * WIDTH + (col+0-1)]);
+    #####:   87:            accum_x += (sobel_kernel_x[2][1]*
+    #####:   88:                        src_ptr[(row+2-1) * WIDTH + (col+1-1)]);
+    #####:   89:            accum_x += (sobel_kernel_x[2][2]*
+    #####:   90:                        src_ptr[(row+2-1) * WIDTH + (col+2-1)]);
+        -:   91:            
+        -:   92:            // calculate convolution with y kernel
+    #####:   93:            accum_y += (sobel_kernel_y[0][0]*
+        -:   94:                        src_ptr[(row+0-1) * WIDTH + (col+0-1)]);
+    #####:   95:            accum_y += (sobel_kernel_y[0][1]*
+        -:   96:                        src_ptr[(row+0-1) * WIDTH + (col+1-1)]);
+    #####:   97:            accum_y += (sobel_kernel_y[0][2]*
+        -:   98:                        src_ptr[(row+0-1) * WIDTH + (col+2-1)]);
+    #####:   99:            accum_y += (sobel_kernel_y[1][0]*
+        -:  100:                        src_ptr[(row+1-1) * WIDTH + (col+0-1)]);
+    #####:  101:            accum_y += (sobel_kernel_y[1][1]*
+        -:  102:                        src_ptr[(row+1-1) * WIDTH + (col+1-1)]);
+    #####:  103:            accum_y += (sobel_kernel_y[1][2]*
+        -:  104:                        src_ptr[(row+1-1) * WIDTH + (col+2-1)]);
+    #####:  105:            accum_y += (sobel_kernel_y[2][0]*
+        -:  106:                        src_ptr[(row+2-1) * WIDTH + (col+0-1)]);
+    #####:  107:            accum_y += (sobel_kernel_y[2][1]*
+        -:  108:                        src_ptr[(row+2-1) * WIDTH + (col+1-1)]);
+    #####:  109:            accum_y += (sobel_kernel_y[2][2]*
+        -:  110:                        src_ptr[(row+2-1) * WIDTH + (col+2-1)]);
+        -:  111:            
+        -:  112:            // calculate total magnitude and clamp to 255
+    #####:  113:            unsigned int total = sqrt(accum_x*accum_x + accum_y*accum_y);
+    #####:  114:            dst_ptr[row * WIDTH + col] = total > 255 ? 255 : total;
+        -:  115:        }
+        -:  116:    }
+    #####:  117:}
+        -:  118:
+        1:  119:void sobel_neon(const Mat& src, Mat& dst)
+        -:  120:{
+        1:  121:	const int HEIGHT = src.rows;
+        1:  122:	const int WIDTH  = src.cols;
+        -:  123:    
+        -:  124:    const unsigned char* src_ptr  = src.ptr<const unsigned char>();
+        -:  125:    unsigned char* dst_ptr  = dst.ptr<unsigned char>();
+        -:  126:    
+        -:  127:    const short FILLER = 0;
+        1:  128:    short packed_kernels [24] =
+        -:  129:    {
+        -:  130:        // x row 1
+        -:  131:        1,  0, -1, FILLER,
+        -:  132:        // x row 2
+        -:  133:        2,  0, -2, FILLER,
+        -:  134:        // y row 1
+        -:  135:        1,  2,  1, FILLER,
+        -:  136:        // y row 2
+        -:  137:        0,  0,  0, FILLER,
+        -:  138:        // x row 3
+        -:  139:        1,  0, -1, FILLER,
+        -:  140:        // y row 3
+        -:  141:        -1,-2, -1, FILLER
+        -:  142:    };
+        -:  143:    
+        -:  144:    // x kernel row 1 and 2
+        -:  145:    int16x8_t k_x12 = vld1q_s16(packed_kernels);
+        -:  146:    // y kernel row 1 and 2
+        -:  147:    int16x8_t k_y12 = vld1q_s16(packed_kernels+8);
+        -:  148:    // x kernel row 3 and y kernel row 3
+        -:  149:    int16x8_t k_x3y3 = vld1q_s16(packed_kernels+16);
+        -:  150:    
+    27997:  151:    for(int row = 1; row < HEIGHT-1; row++)
+        -:  152:    {
+391902006:  153:        for(int col = 1; col < WIDTH-1; col++)
+        -:  154:        {
+        -:  155:            // convert input rows to int16x8_t
+195944004:  156:            uint8x8_t row1_char = vld1_u8(src_ptr + ((row-1) * WIDTH + (col-1)));
+195944004:  157:            uint8x8_t row2_char = vld1_u8(src_ptr + ((row) * WIDTH + (col-1)));
+195944004:  158:            uint8x8_t row3_char = vld1_u8(src_ptr + ((row+1) * WIDTH + (col-1)));
+        -:  159:
+        -:  160:            int16x8_t row1 = vreinterpretq_s16_u16(vmovl_u8(row1_char));
+        -:  161:            int16x8_t row2 = vreinterpretq_s16_u16(vmovl_u8(row2_char));
+        -:  162:            int16x8_t row3 = vreinterpretq_s16_u16(vmovl_u8(row3_char));
+        -:  163:
+        -:  164:            // combine rows 1 and 2 into one int16x8_t
+        -:  165:            int16x8_t r_12 = vcombine_s16(vget_low_s16(row1), vget_low_s16(row2));
+        -:  166:            // put two copies on row 3 in one int16x8_t to calculate x and y kernel in one operation
+        -:  167:            int16x8_t r_33 = vcombine_s16(vget_low_s16(row3), vget_low_s16(row3));
+        -:  168:
+        -:  169:            // calculate x kernel accumulation for rows 1 and 2
+        -:  170:            int16x8_t accum_x12 = vmulq_s16(k_x12, r_12);
+        -:  171:            // calculate y kernel accumulation for rows 1 and 2
+        -:  172:            int16x8_t accum_y12 = vmulq_s16(k_y12, r_12);
+        -:  173:            // calculate x and y kernels accumulation for row 3
+        -:  174:            int16x8_t accum_x3y3 = vmulq_s16(k_x3y3, r_33);
+        -:  175:
+        -:  176:            // combine accumulations for rows 1, 2, and 3
+391888008:  177:            int accum_x = vaddvq_s16(accum_x12) + vaddv_s16(vget_low_s16(accum_x3y3));
+391888008:  178:            int accum_y = vaddvq_s16(accum_y12) + vaddv_s16(vget_high_s16(accum_x3y3));
+        -:  179:            
+        -:  180:            // calculate total magnitude and clamp to 255
+391888008:  181:            unsigned int total = sqrt(accum_x*accum_x + accum_y*accum_y);
+195944004:  182:            dst_ptr[row * WIDTH + col] = total > 255 ? 255 : total;
+        -:  183:        }
+        -:  184:    }
+        4:  185:}
+        -:  186:
